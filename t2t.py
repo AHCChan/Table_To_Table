@@ -1,4 +1,4 @@
-"""
+HELP_DOC = """
 TABLE TO TABLE
 by Angelo Chan
 
@@ -26,15 +26,73 @@ Filtering options (For data in the specified column):
 
 
 
+# Imported Modules #############################################################
+
+import sys
+
+
+
+# Strings ######################################################################
+
+STR__use_help = "\nUse the -h option for help:\n\t python t2t.py -h"
+
+STR__no_inputs = "\nERROR: No inputs were given."
+
+# Lists ########################################################################
+
+LIST__help = ["-h", "-H", "-help", "-Help", "-HELP"] 
+
+
+
 # Dictionaries #################################################################
 
 
 
+# File Processing Code #########################################################
 
-# Code #########################################################################
 
 
-    
+# Command Line Parsing #########################################################
+
+def Parse_Command_Line_Input__t2t(raw_command_line_input):
+    """
+    Parse the command line input.
+    """
+    # Remove the runtime environment variable and program name from the inputs
+    inputs = Strip_Non_Inputs(raw_command_line_input)
+
+    # No inputs
+    if not inputs:
+        print(STR__no_inputs)
+        print(STR__use_help)
+        return 1
+  
+    # Help option
+    if inputs[0] in LIST__help:
+        print(HELP_DOC)
+        return 0
+
+
+
+def Strip_Non_Inputs(list1):
+    """
+    Remove the runtime environment variable and program name from the inputs.
+    Assumes this module was called and the name of this module is in the list of
+    command line inputs.
+
+    Strip_Non_Inputs(list) -> list
+    """
+    try:
+        index = list1.index("t2t.py")
+    except:
+        index = list1.index("t2t")
+    return list1[index+1:]
+
+
+
 # Main Loop ####################################################################
+
+if __name__ == "__main__":
+    Parse_Command_Line_Input__t2t(sys.argv)
 
 

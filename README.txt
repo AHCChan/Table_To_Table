@@ -1,4 +1,24 @@
 
-T2T README
+REQUIREMENTS
+
+This program runs in Python 2. It will not work properly with Python 3.
+
+Please ensure you have Python 2 installed on your computer.
+
+Please ensure you are using the correct version of Python to run this program.
 
 
+
+INSTRUCTIONS
+
+You don't need to know how to use git to use this program. You can simply open
+"t2t.py" in your online browser and copy it's contents onto a local file on your
+computer with the same name.
+
+To run the program, open up a command line window and enter the following
+command (substituting the appropriate file paths) to bring up the help doc:
+
+    C:\Path\To\Python\python.exe C:\Path\To\The\File\t2t.py -h
+
+You should get a large wall of text explaining how to use this program, along
+with some examples.
