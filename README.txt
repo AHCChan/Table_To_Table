@@ -22,3 +22,8 @@ command (substituting the appropriate file paths) to bring up the help doc:
 
 You should get a large wall of text explaining how to use this program, along
 with some examples.
+
+Alternatively, t2t code can be used as a module by other Python programs using
+standard import methods.
+
+
