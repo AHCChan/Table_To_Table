@@ -15,14 +15,19 @@ Accepted file formats:
     - SSV (Space-Separated Values)
 
 Filtering options (For data in the specified column):
-    - EQUALS        (Data must match the specified value exactly)
-    - NOT EQUALS    (Data must not match the specified value exactly)
-    - CONTAINS      (Data must contain the specified value/substring)
-    - NOT CONTAINS  (Data must not contain the specified value/substring)
-    - GREATER THAN  (Data must be stricly greater than the specified value)
-    - GREAQUALS     (Data must be equal to or greater than the specified value)
-    - LESS THAN     (Data must be stricly less than the specified value)
-    - LEQUALS       (Data must be equal to or less than the specified value)
+    - EQUALS str        (Data must match the specified text exactly)
+    - NOT EQUALS str    (Data must not match the specified value exactly)
+    - CONTAINS          (Data must contain the specified value/substring)
+    - NOT CONTAINS      (Data must not contain the specified value/substring)
+    - GREATER THAN      (Data must be stricly greater than the specified value)
+    - GREAQUALS         (Data must be equal to or greater than the specified
+                        value)
+    - LESS THAN         (Data must be stricly less than the specified value)
+    - LEQUALS           (Data must be equal to or less than the specified value)
+    - EQUALS int        (Data must match the specified value exactly)
+    - NOT EQUALS int    (Data must not match the specified value exactly)
+    - EQUALS float      (Data must match the specified value exactly)
+    - NOT EQUALS float  (Data must not match the specified value exactly)
 
 
 
@@ -30,6 +35,8 @@ USAGE:
 
     python27 t2t.py <input_path> <{input_format}> <output_path>
             [-f {output_format}] <col_no>... [filter]...
+
+
 
 MANDATORY:
 
@@ -105,26 +112,48 @@ OPTIONAL:
 
                 The kind of filtering to be performed. Valid operators are:
 
-                    =   Equals <query>
-                    !=  Does not equal <query>
+                    =   Equals <string query>
+                    !=  Does not equal <string query>
                     :   Contains <query>
                     !:  Does not contain <query>
                     >   Greater than <query>
                     <   Less than <query>
                     >=  Equal to or greater than <query>
                     <=  Equal to or less than <query>
+                    i=  Equals <int query>
+                    i!= Does not equal <int query>
+                    f=  Equals <float query>
+                    f!= Does not equal <float query>
+                
+                The "Equals" and Does not equal" operators can compare ints with
+                floats.
 
             query
 
                 The value used as the substring or cutoff.
+
+
+
+EXAMPLES:
+
+
+
+USAGE:
+
+    python27 t2t.py <input_path> <{input_format}> <output_path>
+            [-f {output_format}] <col_no>... [filter]...
 """
 
 
 
 # Configurations ###############################################################
 
+AUTORUN = True
+
 WRITE_PREVENT = False # Completely prevent overwritting existing files
-WRITE_CONFIRM = True # Check to confirm overwritting existing files
+WRITE_CONFIRM = False # Check to confirm overwritting existing files
+
+PRINT_ERRORS = True
 
 
 
@@ -134,7 +163,21 @@ import sys
 
 
 
-# Defaults #####################################################################
+# Enums ########################################################################
+
+class OP:
+    EQUALS=1
+    NOT_EQUAL=2
+    CONTAINS=3
+    NOT_CONTAIN=4
+    GREATER_THAN=5
+    GREAQUALS=6
+    LESS_THAN=7
+    LEQUALS=8
+    EQUALS__INT=9
+    NOT_EQUAL__INT=10
+    EQUALS__FLOAT=11
+    NOT_EQUAL__FLOAT=12
 
 
 
@@ -154,12 +197,20 @@ output file, move the currently existing file, or configure the default options
 in t2t.py."""
 STR__IO_error_write_unable = """
 ERROR: Unable to write to the specified output file."""
-STR__input_format = """
+STR__invalid_file_format = """
 ERROR: Invalid {io} file format: {s}
+
 Please specify one of:
     tsv
     csv
     ssv"""
+
+STR__specify_an_output_format = "\nERROR: Please specify an output format if "\
+        "you use the -f argument."
+
+STR__invalid_argument = "\nERROR: Invalid argument: {s}"
+
+STR__at_least_one_column = "\nERROR: Please specify at least one column."
 
 STR__overwrite_confirm = "\nFile already exists. Do you wish to overwrite it? "\
         "(y/n): "
@@ -177,6 +228,13 @@ LIST__tsv = ["\t", "T", "t", "TSV", "Tsv", "tsv", "TAB", "Tab", "tab"]
 LIST__csv = [",", "C", "c", "CSV", "Csv", "csv", "COMMA", "Comma", "comma"]
 LIST__ssv = [" ", "S", "s", "SSV", "Ssv", "ssv", "SPACE", "Space", "space"]
 
+LIST__search_ops = ["=", "!=", ":", "!:", ">", ">=", "<", "<=",
+        "i=", "i!=", "f=", "f!="] # Syn with DICT__ops
+
+LIST__math_ops = [OP.GREATER_THAN, OP.GREAQUALS, OP.LESS_THAN, OP.LEQUALS]
+LIST__math_ops_i = [OP.EQUALS__INT, OP.NOT_EQUAL__INT]
+LIST__math_ops_f = [OP.EQUALS__FLOAT, OP.NOT_EQUAL__FLOAT]
+
 
 
 # Dictionaries #################################################################
@@ -188,7 +246,78 @@ for i in LIST__ssv: DICT__delim[i] = " "
 
 
 
+DICT__ops = {
+        "=":   OP.EQUALS, 
+        "!=":  OP.NOT_EQUAL,
+        ":":   OP.CONTAINS,
+        "!:":  OP.NOT_CONTAIN,
+        ">":   OP.GREATER_THAN,
+        ">=":  OP.GREAQUALS,
+        "<":   OP.LESS_THAN,
+        "<=":  OP.LEQUALS,
+        "i=":  OP.EQUALS__INT, 
+        "i!=": OP.NOT_EQUAL__INT,
+        "f=":  OP.EQUALS__FLOAT, 
+        "f!=": OP.NOT_EQUAL__FLOAT
+        } # Sync with LIST__search_ops
+
+
+
 # File Processing Code #########################################################
+
+def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
+            inc_filters, exc_filters):
+    """
+    Function which performs the basic table file parsing.
+    
+    @path_in
+            (str - filepath)
+            The filepath of the input file. 
+    @delim_in
+            (str)
+            The delimiter use by the input file.
+    @path_out
+            (str - filepath)
+            The filepath of the output file. 
+    @delim_out
+            (str)
+            The delimiter use by the output file.
+    @columns
+            (list<int>)
+            An list of the columns to be retained from the input file, in that
+            specified order.
+            Uses the 0-index system. (The first column's index number is 0)
+    @inc_filters
+    @exc_filters
+            (list<int,int,int/str>)
+            A list of filtering criteria. @inc_filters is a list of criteria for
+            inclusion while @exc_filters is a list of criteria for exclusion.
+            Each item in the list is a criteria.
+            Each criteria item consists of three parts:
+                1) The column number of the data to be filtered.
+                2) An integer denoting the type of filtering operation:
+                    1:  EQUALS (string)
+                    2:  NOT_EQUAL (string)
+                    3:  CONTAINS
+                    4:  NOT_CONTAIN
+                    5:  GREATER_THAN
+                    6:  GREAQUALS
+                    7:  LESS_THAN
+                    8:  LEQUALS
+                    9:  EQUALS (int)
+                    10: NOT_EQUAL (int)
+                    11: EQUALS (float)
+                    12: NOT_EQUAL (float)
+                3) The string/substring/cutoff used for filtering.
+    
+    Return a value of 0 if the function runs successfully.
+    
+    Table_To_Table(str, str, str, str, list<int>, list<int,int,str/int/float>,
+            list<int,int,str/int/float>) -> int
+    """
+    print((path_in, delim_in, path_out, delim_out, columns,
+            inc_filters, exc_filters))
+    return 0
 
 
 
@@ -196,15 +325,16 @@ for i in LIST__ssv: DICT__delim[i] = " "
 
 def Parse_Command_Line_Input__t2t(raw_command_line_input):
     """
-    Parse the command line input.
+    Parse the command line input and call the Table_To_Table function with
+    appropriate arguments if the command line input is valid.
     """
     # Remove the runtime environment variable and program name from the inputs
     inputs = Strip_Non_Inputs(raw_command_line_input)
 
     # No inputs
     if not inputs:
-        print(STR__no_inputs)
-        print(STR__use_help)
+        printE(STR__no_inputs)
+        printE(STR__use_help)
         return 1
   
     # Help option
@@ -214,29 +344,87 @@ def Parse_Command_Line_Input__t2t(raw_command_line_input):
 
     # Initial validation
     if len(inputs) < 4:
-        print(STR__insufficient_inputs)
-        print(STR__use_help)
+        printE(STR__insufficient_inputs)
+        printE(STR__use_help)
         return 1
     
     valid_in = Validate_Read_Path(inputs[0])
     if valid_in == 1:
-        print(STR__IO_error_read)
+        printE(STR__IO_error_read)
         return 1
     
     delim_in = Validate_File_Format(inputs[1])
     if not delim_in:
-        print(STR__input_format.format(io = "input", s = inputs[1]))
+        printE(STR__invalid_file_format.format(io = "input", s = inputs[1]))
         return 1
     
     valid_out = Validate_Write_Path(inputs[2])
     if valid_out == 2: return 0
     if valid_out == 3:
-        print(STR__IO_error_write_forbid)
+        printE(STR__IO_error_write_forbid)
         return 1
     if valid_out == 4:
-        print(STR__In_error_write_unable)
+        printE(STR__In_error_write_unable)
         return 1
+    
+    # Set up rest of the parsing
+    path_in = inputs.pop(0)
+    inputs.pop(0) # delim_in
+    path_out = inputs.pop(0)
+    delim_out = delim_in # Default behaviour
+    columns = []
+    inc_filters = []
+    exc_filters = []
+    
+    # Parse the rest
+    while inputs:
+        arg = inputs.pop(0)
+        if arg == "-f": # Output file format
+            try:
+                temp = inputs.pop(0)
+                delim = Validate_File_Format(temp)
+            except:
+                printE(STR__specify_an_output_format)
+                return 1
+            if delim:
+                delim_out = delim
+            else:
+                printE(STR__invalid_file_format.format(io = "output", s = temp))
+                return 1
+        else: # Column number of filtering criteria
+            flag_error = True
 
+            arg = Strip_X(arg)
+
+            # If column number
+            c = Validate_Column_Number(arg)
+            if c != -1:
+                columns.append(c)
+                flag_error = False
+
+            # If filter criteria
+            f_ = Validate_Filter(arg)
+            # f_ is either [] or [int, [int,int,str/int/float]]
+            if f_:
+                t, f = f_
+                if t: inc_filters.append(f)
+                else: exc_filters.append(f)
+                flag_error = False
+
+            # Neither column nor filter
+            if flag_error:
+                printE(STR__invalid_argument.format(s = arg))
+                return 1
+    
+    # Ensure at least one column
+    if not columns:
+        printE(STR__at_least_one_column)
+        return 1
+    
+    # Run program
+    Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
+            inc_filters, exc_filters)
+    
     # Safe exit
     return 0
 
@@ -308,6 +496,139 @@ def Validate_File_Format(string):
 
 
 
+def Strip_X(string):
+    """
+    Strips leading and trailing inverted commans or brackets if a matching pair
+    are flanking the string.
+
+    Strip_X(str) -> str
+    """
+    if (    (string[0] == string[-1] == "\"") or
+            (string[0] == string[-1] == "\'") or
+            (string[0] == "(" and string[-1] == ")") or
+            (string[0] == "{" and string[-1] == "}") or
+            (string[0] == "[" and string[-1] == "]") or
+            (string[0] == "<" and string[-1] == ">")
+            ):
+        return string[1:-1]
+    return string
+
+
+
+def Validate_Column_Number(string):
+    """
+    Validates and returns the column number specified.
+
+    Returns the column number under an index 0 system if valid.
+    Return -1 if the input is invalid.
+
+    @string
+        (str)
+        A string denoting the column number under the index 1 system.
+        
+    Validate_Column_Number(str) -> int
+    """
+    try:
+        n = int(string)
+    except:
+        return -1
+    if n < 1: return -1
+    return n - 1 # Input is in index 1 system, output is in index 0
+
+
+
+def Validate_Filter(string):
+    """
+    Validates and returns a filter criteria.
+
+    Return a specific list of values if the string denotes a valid filtering
+    criteria. The list contains an integer and another list. The integer
+    indicates whether the criteria is for inclusion or exclusion. 1 for
+    inclusion, 0 for exclusion. The sublist contains three values. The first
+    is an int denoting the column to be filtered. The second is an int denoting
+    the kind of filtering to be performed. The third is the string, int or float
+    used for filtering.
+
+    The input for column number needs to be in the index-1 system while the
+    output for column number will be in the index-0 system.
+    
+    Return an empty list if the input is invalid.
+
+    @string
+        (str)
+        A string denoting the filtering criteria to be used
+        
+    Validate_Column_Number(str) -> [int, [int,int,str/float]]
+    Validate_Column_Number(str) -> []
+    """
+    # Setup
+    inc_exc = None
+    col = None
+    op = None
+    query = None
+    
+    s = ""
+    
+    # Check the inc/exc flag, exlude the inc/exc char and "col"
+    temp = string.split("col", 1)
+    try:
+        flag, string = temp
+    except:
+        return [] # No "col"
+    if flag == "+" or flag == "": inc_exc = 1
+    elif flag == "!" or flag == "-": inc_exc = 0
+    else: return []
+    
+    # Get and validate column
+    index = 0
+    try:
+        while string[index].isdigit(): index += 1
+    except:
+        return [] # Everything after "col" is just digits
+    
+    col_ = string[:index] # Split the string further
+    string = string[index:] 
+    
+    col = Validate_Column_Number(col_) # Validate the column number
+    if col == -1: return []
+    
+    # Check for operator
+    for k in LIST__search_ops: # Requires a specific order. DICT__ops.keys() 
+        if k in string:        # gives the keys in a scrambled order.
+            if string.index(k) == 0:
+                op = DICT__ops[k] 
+                s = k    
+    if not op: return []
+    
+    # Validate query
+    query_ = string.replace(s, "")
+    
+    if op in LIST__math_ops: # Greater,less,greaquals,lequals
+        try:
+            query = int(query_)
+        except: # Not a float
+            try:
+                query = float(query)
+            except:
+                return [] # Not an int either. Math operation impossible
+    elif op in LIST__math_ops_i: # Integer equal/unequal
+        try:
+            query = int(query_)
+        except:
+            return [] # Not an int
+    elif op in LIST__math_ops_f: # Float equal/unequal
+        try:
+            query = float(query_)
+        except:
+            return [] # Not a float
+    else:
+        query = query_ # String operation
+    
+    # Return filter (all tests passed)
+    return [inc_exc, [col, op, query]]
+
+
+
 def Strip_Non_Inputs(list1):
     """
     Remove the runtime environment variable and program name from the inputs.
@@ -326,7 +647,21 @@ def Strip_Non_Inputs(list1):
 
 # Main Loop ####################################################################
 
-if __name__ == "__main__":
+def printE(string):
+    """
+    A wrapper for the basic print statement.
+
+    It is intended to be used for printing error messages.
+
+    It can be controlled by a global variable.
+    """
+    if PRINT_ERRORS: print(string)
+
+
+
+# Main Loop ####################################################################
+
+if AUTORUN and (__name__ == "__main__"):
     exit_code = Parse_Command_Line_Input__t2t(sys.argv)
 
 

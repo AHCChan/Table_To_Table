@@ -1,4 +1,10 @@
 
+        "But I could probably do this using Regex"
+
+                        - People fortunate enough to be very good at Regex
+
+
+
 REQUIREMENTS
 
 This program runs in Python 2. It will not work properly with Python 3.
