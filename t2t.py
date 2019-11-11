@@ -127,6 +127,10 @@ OPTIONAL:
                 
                 The "Equals" and Does not equal" operators can compare ints with
                 floats.
+                
+                NOTE: Some of these operations requires the entire argument
+                be enclosed in single or double inverted commas to work
+                properly.
 
             query
 
@@ -136,7 +140,8 @@ OPTIONAL:
 
 EXAMPLES:
 
-
+    python27 t2t.py Test_Data_1.tsv tsv Test_Output.csv csv 2 3 4 5 col5=Desert
+            col2!=Andy "col3>1.8"
 
 USAGE:
 
@@ -151,9 +156,10 @@ USAGE:
 AUTORUN = True
 
 WRITE_PREVENT = False # Completely prevent overwritting existing files
-WRITE_CONFIRM = False # Check to confirm overwritting existing files
+WRITE_CONFIRM = True # Check to confirm overwritting existing files
 
 PRINT_ERRORS = True
+PRINT_PROGRESS = True
 
 
 
@@ -214,6 +220,16 @@ STR__at_least_one_column = "\nERROR: Please specify at least one column."
 
 STR__overwrite_confirm = "\nFile already exists. Do you wish to overwrite it? "\
         "(y/n): "
+
+STR__invalid_operation = "\nERROR: Invalid operation specified."
+
+
+
+STR__parsing_args = "\nParsing arguments..."
+
+STR__t2t_begin = "\nRunning Table2Table..."
+
+STR__t2t_complete = "\nTable2Table successfully finished."
 
 
 
@@ -289,9 +305,10 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
             Uses the 0-index system. (The first column's index number is 0)
     @inc_filters
     @exc_filters
-            (list<int,int,int/str>)
-            A list of filtering criteria. @inc_filters is a list of criteria for
-            inclusion while @exc_filters is a list of criteria for exclusion.
+            (list<int,int,str/int/float>)
+            A list of filtering criteria. [inc_filters] is a list of criteria
+            for inclusion while [exc_filters] is a list of criteria for
+            exclusion.
             Each item in the list is a criteria.
             Each criteria item consists of three parts:
                 1) The column number of the data to be filtered.
@@ -315,9 +332,211 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
     Table_To_Table(str, str, str, str, list<int>, list<int,int,str/int/float>,
             list<int,int,str/int/float>) -> int
     """
-    print((path_in, delim_in, path_out, delim_out, columns,
-            inc_filters, exc_filters))
+    printP(STR__t2t_begin)
+    
+    # Initialize
+    r = open(path_in, "U")
+    w = open(path_out, "w")
+
+    line = r.readline()
+
+    # Main Loop
+    while line:
+        
+        data = Parse_Line(line, delim_in)
+
+        test = Filter(data, inc_filters, exc_filters)
+
+        if test:
+            string = Create_Output(data, columns, delim_out)
+            w.write(string)
+        
+        # Main Loop (2)
+        line = r.readline()
+
+    # Finish
+    w.close()
+    r.close()
+
+    # Exit
+    printP(STR__t2t_complete)
     return 0
+
+
+
+def Parse_Line(line, delim):
+    """
+    Parse the raw output of a line from a table file and return a list
+    containing all the data values in that line.
+
+    Newline characters are excluded.
+
+    Parse_Line(str, str) -> list<str>
+    """
+    result = line.split(delim)
+    if result[-1][-1] == "\n" or result[-1][-1] == "\r":
+        result[-1] = result[-1][:-1]
+    return result
+
+
+
+def Create_Output(data, columns, delim):
+    """
+    Take a list of data values, a list of column numbers and a delimiter and
+    produce a string indended to be written to an output table file.
+
+    The list of column numbers determines which values from [data] are kept, and
+    in what order.
+
+    Create_Output(list<str>, list<int>, str) -> str
+    """
+    first = columns[0]
+    others = columns[1:]
+
+    sb = data[first]
+    for i in others:
+        sb += (delim + data[i])
+
+    sb += "\n"
+
+    return sb
+
+
+
+def Filter(data, inc_filters, exc_filters):
+    """
+    Take a list of data values, and 2 lists of filtering criteria. Return True
+    if the data meets all inclusion criteria and does not meet any exclusion
+    criteria. Return false otherwise.
+
+    Filter(list<str>, list<int, int, str/int/float>,
+            list<int, int, str/int/float>) -> bool
+    """
+    inc = Filter_Inc(data, inc_filters)
+    exc = Filter_Exc(data, exc_filters)
+    if inc and not exc: return True
+    return False
+
+def Filter_Inc(data, inc_filters):
+    """
+    Take a list of data values, and a list of inclusion criteria. Return True
+    if the data meets all inclusion criteria. Return False otherwise.
+
+    Filter(list<str>, list<int, int, str/int/float>) -> bool
+    """
+    for f in inc_filters:
+        b = Filter_Single(data, f)
+        if not b: return False
+    return True
+
+def Filter_Exc(data, exc_filters):
+    """
+    Take a list of data values, and a list of exclusion criteria. Return True
+    if the data meets any of the exclusion criteria. Return False otherwise.
+
+    Filter(list<str>, list<int, int, str/int/float>) -> bool
+    """
+    for f in exc_filters:
+        b = Filter_Single(data, f)
+        if b: return True
+    return False
+
+def Filter_Single(data, criteria):
+    """
+    Take a list of data values, and a list representing a filter criteria.
+    Return True if the data meets the criteria. Return False otherwise.
+
+    The criteria item consists of three parts:
+        1) The column number of the data to be filtered.
+        2) An integer denoting the type of filtering operation:
+            1:  EQUALS (string)
+            2:  NOT_EQUAL (string)
+            3:  CONTAINS
+            4:  NOT_CONTAIN
+            5:  GREATER_THAN
+            6:  GREAQUALS
+            7:  LESS_THAN
+            8:  LEQUALS
+            9:  EQUALS (int)
+            10: NOT_EQUAL (int)
+            11: EQUALS (float)
+            12: NOT_EQUAL (float)
+        3) The string/substring/cutoff used for filtering.
+
+    Filter(list<str>, [int, int, str/int/float]) -> bool
+    """
+    col, op, query = criteria
+    
+    if op == OP.EQUALS:
+        if data[col] == query: return True
+        return False
+    
+    elif op == OP.NOT_EQUAL:
+        if data[col] != query: return True
+        return False
+    
+    elif op == OP.CONTAINS:
+        if query in data[col]: return True
+        return False
+    
+    elif op == OP.NOT_CONTAIN:
+        if query not in data[col]: return True
+        return False
+    
+    elif op == OP.GREATER_THAN:
+        try:
+            d = int(data[col])
+        except:
+            d = float(data[col])
+        if d > query: return True
+        return False
+    
+    elif op == OP.GREAQUALS:
+        try:
+            d = int(data[col])
+        except:
+            d = float(data[col])
+        if d >= query: return True
+        return False
+    
+    elif op == OP.LESS_THAN:
+        try:
+            d = int(data[col])
+        except:
+            d = float(data[col])
+        if d < query: return True
+        return False
+    
+    elif op == OP.LEQUALS:
+        try:
+            d = int(data[col])
+        except:
+            d = float(data[col])
+        if d <= query: return True
+        return False
+    
+    elif op == OP.EQUALS__INT:
+        d = int(data[col])
+        if d == query: return True
+        return False
+    
+    elif op == OP.NOT_EQUAL__INT:
+        d = int(data[col])
+        if d != query: return True
+        return False
+    
+    elif op == OP.EQUALS__FLOAT:
+        d = float(data[col])
+        if d == query: return True
+        return False
+    
+    elif op == OP.NOT_EQUAL__FLOAT:
+        d = float(data[col])
+        if d != query: return True
+        return False
+    
+    else:
+        raise Exception(STR__invalid_operation)
 
 
 
@@ -328,6 +547,7 @@ def Parse_Command_Line_Input__t2t(raw_command_line_input):
     Parse the command line input and call the Table_To_Table function with
     appropriate arguments if the command line input is valid.
     """
+    printP(STR__parsing_args)
     # Remove the runtime environment variable and program name from the inputs
     inputs = Strip_Non_Inputs(raw_command_line_input)
 
@@ -414,6 +634,7 @@ def Parse_Command_Line_Input__t2t(raw_command_line_input):
             # Neither column nor filter
             if flag_error:
                 printE(STR__invalid_argument.format(s = arg))
+                printE(STR__use_help)
                 return 1
     
     # Ensure at least one column
@@ -596,9 +817,10 @@ def Validate_Filter(string):
     for k in LIST__search_ops: # Requires a specific order. DICT__ops.keys() 
         if k in string:        # gives the keys in a scrambled order.
             if string.index(k) == 0:
-                op = DICT__ops[k] 
-                s = k    
-    if not op: return []
+                op = DICT__ops[k]
+                s = k
+    if not op:
+        return []
     
     # Validate query
     query_ = string.replace(s, "")
@@ -608,8 +830,9 @@ def Validate_Filter(string):
             query = int(query_)
         except: # Not a float
             try:
-                query = float(query)
+                query = float(query_)
             except:
+                print query
                 return [] # Not an int either. Math operation impossible
     elif op in LIST__math_ops_i: # Integer equal/unequal
         try:
@@ -645,7 +868,7 @@ def Strip_Non_Inputs(list1):
 
 
 
-# Main Loop ####################################################################
+# Controlled Print Statements ##################################################
 
 def printE(string):
     """
@@ -656,6 +879,17 @@ def printE(string):
     It can be controlled by a global variable.
     """
     if PRINT_ERRORS: print(string)
+
+
+def printP(string):
+    """
+    A wrapper for the basic print statement.
+
+    It is intended to be used for printing progress messages.
+
+    It can be controlled by a global variable.
+    """
+    if PRINT_PROGRESS: print(string)
 
 
 

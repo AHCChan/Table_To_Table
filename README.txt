@@ -1,5 +1,7 @@
+ 
 
-        "But I could probably do this using Regex"
+
+        "But I could probably do this using Regex."
 
                         - People fortunate enough to be very good at Regex
 
