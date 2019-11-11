@@ -141,7 +141,7 @@ OPTIONAL:
 EXAMPLES:
 
     python27 t2t.py Test_Data_1.tsv tsv Test_Output.csv csv 2 3 4 5 col5=Desert
-            col2!=Andy "col3>1.8"
+            "col3>1.8" 
 
 USAGE:
 
@@ -860,11 +860,8 @@ def Strip_Non_Inputs(list1):
 
     Strip_Non_Inputs(list) -> list
     """
-    try:
-        index = list1.index("t2t.py")
-    except:
-        index = list1.index("t2t")
-    return list1[index+1:]
+    if "t2t.py" in list1[0]: return list1[1:]
+    return list1[2:]
 
 
 

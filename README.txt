@@ -35,3 +35,14 @@ Alternatively, t2t code can be used as a module by other Python programs using
 standard import methods.
 
 
+
+TESTING AND FEEDBACK
+
+The files provided in the Testing folder can be used as a reference for making
+sure the program works properly and/or for implementing this in another 
+language.
+
+Feel free to contact Angelo Chan (angelo.hoi.chung.chan@gmail.com) if you have
+any questions, feedback, or bugs to report.
+
+

@@ -1,0 +1,13 @@
+
+C:\Python27\python.exe ..\t2t.py Test_Data_1.tsv tsv Tall_Deserts_Data.csv -f csv 2 3 4 5 col5=Desert "col3>1.8"
+
+C:\Python27\python.exe ..\t2t.py Test_Data_1.tsv tsv No_Forests_Data.ssv -f ssv 2 3 4 5 col5!=Forest
+
+C:\Python27\python.exe ..\t2t.py Test_Data_1.tsv tsv No_Forests_Data_2.tsv 2 3 4 5 !col5=Forest
+
+C:\Python27\python.exe ..\t2t.py Test_Data_1.tsv tsv Medium_Heights.tsv -f tsv 3 "+col3<1.8" "+col3>1.6"
+
+C:\Python27\python.exe ..\t2t.py Test_Data_1.tsv tsv Names_With_Double_N.csv -f csv 2 "col2:nn"
+
+
+
