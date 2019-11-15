@@ -160,6 +160,7 @@ WRITE_CONFIRM = True # Check to confirm overwritting existing files
 
 PRINT_ERRORS = True
 PRINT_PROGRESS = True
+PRINT_METRICS = True
 
 
 
@@ -184,6 +185,10 @@ class OP:
     NOT_EQUAL__INT=10
     EQUALS__FLOAT=11
     NOT_EQUAL__FLOAT=12
+
+class ALIGN:
+    LEFT=1
+    RIGHT=2
 
 
 
@@ -222,6 +227,12 @@ STR__overwrite_confirm = "\nFile already exists. Do you wish to overwrite it? "\
         "(y/n): "
 
 STR__invalid_operation = "\nERROR: Invalid operation specified."
+
+
+
+STR__metrics_lines = "\nTotal_Lines:  {N}"
+
+STR__metrics_passed = "Total_Passed: {N} ( {P}% )"
 
 
 
@@ -334,20 +345,26 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
     """
     printP(STR__t2t_begin)
     
-    # Initialize
+    # Initialize File IO
     r = open(path_in, "U")
     w = open(path_out, "w")
 
     line = r.readline()
-
+    
+    # Initialize Metrics
+    count_total = 0
+    count_passed = 0
+    
     # Main Loop
     while line:
+        count_total += 1
         
         data = Parse_Line(line, delim_in)
 
         test = Filter(data, inc_filters, exc_filters)
 
         if test:
+            count_passed += 1
             string = Create_Output(data, columns, delim_out)
             w.write(string)
         
@@ -358,6 +375,13 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
     w.close()
     r.close()
 
+    # Metrics Reporting
+    s_total, s_passed = Ints_To_Aligned_Strings(
+            [count_total, count_passed], ALIGN.RIGHT)
+    s_percentage = Get_Percentage_String(count_passed, count_total, 2, 6)
+
+    printM(STR__metrics_lines.format(N = s_total))
+    printM(STR__metrics_passed.format(N = s_passed, P = s_percentage))
     # Exit
     printP(STR__t2t_complete)
     return 0
@@ -537,6 +561,84 @@ def Filter_Single(data, criteria):
     
     else:
         raise Exception(STR__invalid_operation)
+
+def Ints_To_Aligned_Strings(list1, alignment):
+    """
+    Convert a list of integers into a series of strings of equal length.
+    
+    @list1
+            (list<int>)
+            The integers which need to be converted to text
+    @alignment
+            (int)
+            An integer denoting the direction of alignment:
+                1: LEFT
+                2: RIGHT
+    
+    Return a list of strings corresponding to the integers.
+
+    Ints_To_Aligned_Strings(list<int>, int) -> list<str>
+    """
+    # Initialize
+    max_length = 0
+    temp = []
+    result = []
+    # First run through
+    for integer in list1:
+        string = str(integer)
+        length = len(string)
+        if length > max_length: max_length = length
+        temp.append(string)
+    # Pad strings
+    for string in temp:
+        length = len(string)
+        if length == max_length: result.append(string)
+        else:
+            dif = max_length - length
+            pad = dif*" "
+            if alignment == ALIGN.LEFT:
+                string = string+pad
+            elif alignment == ALIGN.RIGHT:
+                string = pad+string
+            result.append(string)
+    # Return
+    return result
+
+def Get_Percentage_String(numerator, denominator, decimal_places, length=0):
+    """
+    Calculate a percentage using a numerator and a denominator, then return the
+    string of that percentage with the specified number of decimal places.
+    The string is also padded to the specified length.
+    
+    @numerator
+            (int/float)
+    @denominator
+            (int/float)
+    @decimal_places
+            (int)
+    @length
+            (int)
+    
+    Get_Percentage_String(int/float, int/float, int, int) -> str
+    """
+    length_x = length - (decimal_places + 1)
+    
+    percentage = (numerator*100.0)/denominator
+    string = str(percentage)
+    
+    part_1, part_2 = string.split(".")
+    length_1 = len(part_1)
+    length_2 = len(part_2)
+
+    dif_1 = length_x - length_1
+    if dif_1: part_1 = dif_1*" " + part_1
+
+    dif_2 = decimal_places - length_2
+    if dif_2 > 0: part_2 = part_2 + dif_2*"0"
+    else: part_2 = part_2[:decimal_places]
+
+    result = part_1 + "." + part_2
+    return result
 
 
 
@@ -877,7 +979,6 @@ def printE(string):
     """
     if PRINT_ERRORS: print(string)
 
-
 def printP(string):
     """
     A wrapper for the basic print statement.
@@ -887,6 +988,16 @@ def printP(string):
     It can be controlled by a global variable.
     """
     if PRINT_PROGRESS: print(string)
+
+def printM(string):
+    """
+    A wrapper for the basic print statement.
+
+    It is intended to be used for printing file metrics.
+
+    It can be controlled by a global variable.
+    """
+    if PRINT_METRICS: print(string)
 
 
 
