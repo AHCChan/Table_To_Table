@@ -9,5 +9,12 @@ C:\Python27\python.exe ..\t2t.py Test_Data_1.tsv tsv Medium_Heights.tsv -f tsv 3
 
 C:\Python27\python.exe ..\t2t.py Test_Data_1.tsv tsv Names_With_Double_N.csv -f csv 2 "col2:nn"
 
+C:\Python27\python.exe ..\t2t.py Test_Data_2__Headers.tsv tsv Tall_Deserts_Data__Skip_Headers.tsv -f tsv 2 3 4 5 col5=Desert "col3>1.8" -h skip NUMBER 1
+
+C:\Python27\python.exe ..\t2t.py Test_Data_3__Comments.tsv tsv Data__Keep_Comments.tsv -f tsv 1 2 3 4 5 col5=Desert "col3>1.8" -h KEEP char #
+
+C:\Python27\python.exe ..\t2t.py Test_Data_4__Headers_Comments.tsv tsv Tall_Deserts_Data__Skip_Comments_Keep_Headers.tsv -f tsv 1 2 3 4 5 col5=Desert "col3>1.8" -h Skip Char # -h k NUM 1
+
+C:\Python27\python.exe ..\t2t.py Test_Data_5__Headers_Comments.tsv tsv Tall_Deserts_Data__Keep_Comments_Skip_Line_Rearrange_Headers.tsv -f tsv 2 3 4 5 col5=Desert "col3>1.8" -h K C # -h S N 1 -h R N 1
 
 

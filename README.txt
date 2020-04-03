@@ -42,7 +42,11 @@ The files provided in the Testing folder can be used as a reference for making
 sure the program works properly and/or for implementing this in another 
 language.
 
+The example data (Test_Data_1.tsv) was used by the commands in the script file
+(Testing_Commands.txt) to derive the other files.
+
 Feel free to contact Angelo Chan (angelo.hoi.chung.chan@gmail.com) if you have
 any questions, feedback, or bugs to report.
 
 
+ 
