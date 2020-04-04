@@ -2,20 +2,25 @@ HELP_DOC = """
 TABLE TO TABLE
 (version 2.0)
 by Angelo Chan
+
 This is a program for basic table file parsing.
+
 Users can choose to retain the table file format or change it to another file
 format. Users select which columns of data will be retained, and which order the columns
 will appear in, in the output file. Users can perform basic filtering on the
 rows of data.
+
 Users can also specify special treatment for the lines at the beginning of the
 file. Users may specify for the program to skip a certain number of lines or
 lines beginning with a certain character, which often occurs with comments.
 Users may also directly retain such lines, or, in the case of column headers,
 rearrange the headers without applying the filtering criteria.
+
 Accepted file formats:
     - TSV (Tab-Separated Values)
     - CSV (Comma-Separated Values)
     - SSV (Space-Separated Values)
+
 Filtering options (For data in the specified column):
     - EQUALS str        (Data must match the specified text exactly)
     - NOT EQUALS str    (Data must not match the specified value exactly)
@@ -30,58 +35,91 @@ Filtering options (For data in the specified column):
     - NOT EQUALS int    (Data must not match the specified value exactly)
     - EQUALS float      (Data must match the specified value exactly)
     - NOT EQUALS float  (Data must not match the specified value exactly)
+
+
+
 USAGE:
+    
     python27 t2t.py <input_path> <{input_format}> <output_path>
             [-f {output_format}] <col_no>... [filter]...
             [-h keep|skip N|C {number}|{char}]...
+
+
+
 MANDATORY:
-    input_path 
+    
+    input_path
+        
         The filepath of the input file.
+    
     input_format
+        
         The file format of the input file. Acceptable options are:
             tsv - Tab-separated values
             csv - Comma-separated values
             ssv - Space-separated values
+    
     output_path
+        
         The filepath of the output file.
+
 OPTIONAL:
+    
     output_format
+        
         The file format of the output file. If no format is specified, the
         output format will be the same as the input format. Acceptable options
         are:
             tsv - Tab-separated values
             csv - Comma-separated values
             ssv - Space-separated values
+    
     col_no
+        
         The columns of data which are to be kept in the output file. The order
         in which the columns are specified will be the order in which they will
         be outputted.
+        
         At least one column needs to be specified. The same column can be
         specified multiple times.
+        
         The column numbers use the index 1 system, not index 0. Ex. To keep the
         first column, enter "1".
+    
     filter
+        
         Optional.
         
         Filtering criteria by which columns are included or excluded. Specifying
         a filtering criteria requires 4 components:
+            
             "<type>col<col_no><operator><query>"
+        
         Examples:
+            
             1) "col2=M"     (Include rows where column 2 is "M")
             2) "!col3<18"   (Exclude rows where column 3 is less than 18)
             3) "+col6!:X"   (Include rows where column 6 does not contain "X")
+        
         Components:
+            
             type
+                
                 Specifies whether the criteria is for inclusion or exclusion.
                 Leaving it blank will default to inclusion. (Example 1)
                 "+" indicates this is an inclusion criteria. (Example 3)
                 "!" or "-" indicates this is an exclusion criteria. (Example 2)
+            
             col_no
+                
                 The column number on whih the filtering criteria is applied. The
                 column numbers use the index 1 system, not index 0. Ex. To
                 filter on the first column, enter "1".
+            
             operator
+                
                 The kind of filtering to be performed. Valid operators are:
+                    
                     =   Equals <string query>
                     !=  Does not equal <string query>
                     :   Contains <query>
@@ -101,44 +139,64 @@ OPTIONAL:
                 NOTE: Some of these operations requires the entire argument
                 be enclosed in single or double inverted commas to work
                 properly.
+            
             query
+                
                 The value used as the substring or cutoff.
     
     keep|skip|rearrange
+        
         keep
             Keep lines at the start of the file.
+        
         skip
             Skip lines at the start of the file.
+        
         rearrange
             Keep lines at the start of the file, but rearrange them according
             to the @col_no specifications.
+    
     N|C
+        
         N
             Keep/skip/rearrange a set number of lines.
+        
         C
             Keep/skip/rearrange lines that begin with a given character.
+    
     number
+        
         If option "N" was chosen, then this specifies the number of lines to
         Keep/skip/rearrange.
+    
     character
+        
         If the option "C" was chosen, then this specifies which character a line
         should start with to Keep/skip/rearrange it.
+
 EXAMPLES EXPLANATION:
+    
     1:
     Keep columns 2, 3, 4, and 5, in that order. Only keep entries where the
     5th column's data entry is "Desert" and where the 3rd column's data entry is
     greater than 1.8.
+    
     2:
     Skip the lines at the start of the file that begin with "#". Then keep the
     next 1 line. Then follow the data formatting and selection criteria of
     example 1.
+
 EXAMPLES:
+
     python27 t2t.py Test_Data_1.tsv tsv Test_Output.csv csv 2 3 4 5 col5=Desert
             "col3>1.8"
+
     python27 t2t.py Test_Data_5__Headers_Comments.tsv tsv Test_Output.csv csv
             2 3 4 5 col5=Desert "col3>1.8"
             -h skip C # -h keep N 1 -h rearrange N 1
+
 USAGE:
+
     python27 t2t.py <input_path> <{input_format}> <output_path>
             [-f {output_format}] <col_no>... [filter]...
             [-h keep|skip N|C {number}|{character}]...
@@ -383,6 +441,29 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
                     11: EQUALS (float)
                     12: NOT_EQUAL (float)
                 3) The string/substring/cutoff used for filtering.
+    @headers
+            (list<[int,int,str/int]>)
+            A list of lists which specify special treatment for line(s) at the
+            beginning of the file.
+            Each sublist contains 3 elements:
+                1) An integer denoting the type of action to take:
+                    1:  KEEP
+                    2:  SKIP
+                    3:  REARRANGE
+                2) An integer denoting whether to act on a set number of lines
+                        or on an unknown NUMBER of lines beginning with a
+                        specified CHARACTER:
+                    1:  CHARACTER
+                    2:  NUMBER
+                3) If element 2 was CHARACTER, element 3 will be the character
+                        which denotes the lines to be acted on. If element 2 was
+                        NUMBER, element 3 will be the integer which denotes the
+                        number of lines to act on.
+    
+    character
+    
+        If the option "C" was chosen, then this specifies which character a line
+        should start with to Keep/skip/rearrange it.
     
     Return a value of 0 if the function runs successfully.
     
@@ -400,6 +481,23 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
     # Initialize Metrics
     count_total = 0
     count_passed = 0
+    
+    # Header and Comments
+    for header_list in headers:
+        action, action_type, value = header_list
+        
+        # A set number of lines
+        if action_type == HEADER_TYPE.NUM:
+            while value > 0:
+                Process_Header(line, action, w, delim_in, delim_out, columns)
+                line = r.readline()
+                value = value - 1
+        
+        # Lines beginning with a specified characters
+        elif action_type == HEADER_TYPE.CHAR:
+            while line[0] == value:
+                Process_Header(line, action, w, delim_in, delim_out, columns)
+                line = r.readline()
     
     # Main Loop
     while line:
@@ -434,11 +532,68 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
 
 
 
+def Process_Header(line, action, writefile, delim_in, delim_out, columns):
+    """
+    Process the line according to the action specified.
+
+    If [action] is 1 (KRS.KEEP), then write [line] to [writefile] as is.
+
+    If [action] is 2 (KRS.SKIP), then the line is ignored.
+
+    If [action] is 3 (KRS.READ), then the contents of [line] are parsed using
+    [delim_in] and rearranged according to [delim_out] and [columns], before
+    being written to [writefile].
+
+    Return 0 if the operation was carried out without problem.
+    Return 1 if there was a problem.
+
+    @line
+            (str)
+            A line from the input file that needs to be processed different from
+            the rest of the tabulated data.
+    @action
+            (int) - Pseudo ENUM
+            An int which signifies the action which needs to be taken:
+                1: Keep the line as is
+                2: Skip the line
+                3: Rearrange the contents of the line
+    @writefile
+            (file)
+            The file to which the output is written.
+    @delim_in
+            (str)
+            The delimiter use by the input file. 
+    @delim_out
+            (str)
+            The delimiter use by the output file.
+    @columns
+            (list<int>)
+            An list of the columns to be retained from the input file, in that
+            specified order.
+            Uses the 0-index system. (The first column's index number is 0)
+    
+    Process_Header(str, int, file, str, str, list<int>) -> int
+    """
+    if action == KSR.KEEP: # Keep
+        writefile.write(line)
+        return 0
+    elif action == KSR.SKIP: # Skip
+        return 0
+    elif action == KSR.REAR: # Rearrange
+        values = Parse_Line(line, delim_in)
+        line = Create_Output(values, columns, delim_out)
+        writefile.write(line)
+        return 0
+    return 1
+
+
+
 def Parse_Line(line, delim):
     """
     Parse the raw output of a line from a table file and return a list
     containing all the data values in that line.
     Newline characters are excluded.
+    
     Parse_Line(str, str) -> list<str>
     """
     result = line.split(delim)
@@ -451,9 +606,10 @@ def Parse_Line(line, delim):
 def Create_Output(data, columns, delim):
     """
     Take a list of data values, a list of column numbers and a delimiter and
-    produce a string indended to be written to an output table file.
+    produce a string intended to be written to an output table file.
     The list of column numbers determines which values from [data] are kept, and
     in what order.
+    
     Create_Output(list<str>, list<int>, str) -> str
     """
     first = columns[0]
@@ -474,6 +630,7 @@ def Filter(data, inc_filters, exc_filters):
     Take a list of data values, and 2 lists of filtering criteria. Return True
     if the data meets all inclusion criteria and does not meet any exclusion
     criteria. Return false otherwise.
+    
     Filter(list<str>, list<int, int, str/int/float>,
             list<int, int, str/int/float>) -> bool
     """
@@ -497,6 +654,7 @@ def Filter_Exc(data, exc_filters):
     """
     Take a list of data values, and a list of exclusion criteria. Return True
     if the data meets any of the exclusion criteria. Return False otherwise.
+    
     Filter(list<str>, list<int, int, str/int/float>) -> bool
     """
     for f in exc_filters:
@@ -524,6 +682,7 @@ def Filter_Single(data, criteria):
             11: EQUALS (float)
             12: NOT_EQUAL (float)
         3) The string/substring/cutoff used for filtering.
+    
     Filter(list<str>, [int, int, str/int/float]) -> bool
     """
     col, op, query = criteria
@@ -613,6 +772,7 @@ def Ints_To_Aligned_Strings(list1, alignment):
                 2: RIGHT
     
     Return a list of strings corresponding to the integers.
+    
     Ints_To_Aligned_Strings(list<int>, int) -> list<str>
     """
     # Initialize
@@ -814,6 +974,7 @@ def Validate_Read_Path(filepath):
     Validates the filepath of the input file.
     Return 0 if the filepath is valid.
     Return 1 otherwise.
+    
     Validate_Read_Path(str) -> int
     """
     try:
@@ -833,6 +994,7 @@ def Validate_Write_Path(filepath):
     Return 2 if the user declines to overwrite an existing file.
     Return 3 if the file exists and the program is set to forbid overwriting.
     Return 4 if the program is unable to write to the filepath specified.
+    
     Validate_Write_Path(str) -> int
     """
     try:
@@ -866,6 +1028,7 @@ def Validate_File_Format(string):
     Validates the file format specified.
     Return the appropriate delimiter.
     Return an empty string if the file format is invalid.
+    
     Validate_File_Format(str) -> str
     """
     return DICT__delim.get(string, "")
@@ -876,6 +1039,7 @@ def Strip_X(string):
     """
     Strips leading and trailing inverted commans or brackets if a matching pair
     are flanking the string.
+    
     Strip_X(str) -> str
     """
     if (    (string[0] == string[-1] == "\"") or
@@ -1006,6 +1170,7 @@ def Strip_Non_Inputs(list1):
     Remove the runtime environment variable and program name from the inputs.
     Assumes this module was called and the name of this module is in the list of
     command line inputs.
+    
     Strip_Non_Inputs(list) -> list
     """
     if "t2t.py" in list1[0]: return list1[1:]
@@ -1092,6 +1257,7 @@ def Validate_Header_KSR(string):
     Return 2 to "skip" the line(s) entirely.
     Return 3 to keep and rearrange some of the columns in the line(s).
     Return 0 of the action specified is invalid.
+    
     Validate_KSR(str) -> int
     """
     return DICT__ksr.get(string, 0)
@@ -1102,6 +1268,7 @@ def Validate_Header_Type(string):
     Return 1 to keep/skip/rearrange line(s) beginning with a certain character.
     Return 2 to keep/skip/rearrange a set number of lines.
     Return 0 of the type specified is invalid.
+    
     Validate_KSR(str) -> int
     """
     return DICT__header_type.get(string, 0)
