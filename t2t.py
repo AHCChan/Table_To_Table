@@ -26,10 +26,10 @@ Filtering options (For data in the specified column):
     - NOT EQUALS str    (Data must not match the specified value exactly)
     - CONTAINS          (Data must contain the specified value/substring)
     - NOT CONTAINS      (Data must not contain the specified value/substring)
-    - GREATER THAN      (Data must be stricly greater than the specified value)
+    - GREATER THAN      (Data must be strictly greater than the specified value)
     - GREAQUALS         (Data must be equal to or greater than the specified
                         value)
-    - LESS THAN         (Data must be stricly less than the specified value)
+    - LESS THAN         (Data must be strictly less than the specified value)
     - LEQUALS           (Data must be equal to or less than the specified value)
     - EQUALS int        (Data must match the specified value exactly)
     - NOT EQUALS int    (Data must not match the specified value exactly)
