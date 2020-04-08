@@ -1,6 +1,6 @@
 HELP_DOC = """
 TABLE TO TABLE
-(version 2.0)
+(version 2.1)
 by Angelo Chan
 
 This is a program for basic table file parsing.
@@ -42,7 +42,7 @@ USAGE:
     
     python27 t2t.py <input_path> <{input_format}> <output_path>
             [-f {output_format}] <col_no>... [filter]...
-            [-h keep|skip N|C {number}|{char}]...
+            [-h keep|skip|rearrange N|C <number>|<character>]...
 
 
 
@@ -196,10 +196,10 @@ EXAMPLES:
             -h skip C # -h keep N 1 -h rearrange N 1
 
 USAGE:
-
+    
     python27 t2t.py <input_path> <{input_format}> <output_path>
             [-f {output_format}] <col_no>... [filter]...
-            [-h keep|skip N|C {number}|{character}]...
+            [-h keep|skip|rearrange N|C <number>|<character>]...
 """
 
 
