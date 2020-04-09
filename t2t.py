@@ -460,11 +460,6 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
                         NUMBER, element 3 will be the integer which denotes the
                         number of lines to act on.
     
-    character
-    
-        If the option "C" was chosen, then this specifies which character a line
-        should start with to Keep/skip/rearrange it.
-    
     Return a value of 0 if the function runs successfully.
     
     Table_To_Table(str, str, str, str, list<int>, list<int,int,str/int/float>,
