@@ -1,6 +1,6 @@
 HELP_DOC = """
 TABLE TO TABLE
-(version 2.1)
+(version 3.0)
 by Angelo Chan
 
 This is a program for basic table file parsing.
@@ -85,6 +85,8 @@ OPTIONAL:
         
         The column numbers use the index 1 system, not index 0. Ex. To keep the
         first column, enter "1".
+        
+        To create an empty column, use 0.
     
     filter
         
@@ -174,6 +176,8 @@ OPTIONAL:
         If the option "C" was chosen, then this specifies which character a line
         should start with to Keep/skip/rearrange it.
 
+
+
 EXAMPLES EXPLANATION:
     
     1:
@@ -185,15 +189,21 @@ EXAMPLES EXPLANATION:
     Skip the lines at the start of the file that begin with "#". Then keep the
     next 1 line. Then follow the data formatting and selection criteria of
     example 1.
+    
+    3:
+    Keep columns 1, 2, and 3, in that order, followed by a placeholder column,
+    followed by column 4.
 
 EXAMPLES:
 
-    python27 t2t.py Test_Data_1.tsv tsv Test_Output.csv csv 2 3 4 5 col5=Desert
-            "col3>1.8"
+    python27 t2t.py Test_Data_1.tsv tsv Test_Output.csv -f csv 2 3 4 5
+            col5=Desert "col3>1.8"
 
-    python27 t2t.py Test_Data_5__Headers_Comments.tsv tsv Test_Output.csv csv
-            2 3 4 5 col5=Desert "col3>1.8"
-            -h skip C # -h keep N 1 -h rearrange N 1
+    python27 t2t.py Test_Data_5__Headers_Comments.tsv tsv Test_Output.csv -f csv
+            2 3 4 5 col5=Desert "col3>1.8" -h skip C # -h keep N 1 -h
+            rearrange N 1
+
+    python27 t2t.py Test_Data_1.tsv tsv Test_Output.csv -f csv 1 2 3 0 4
 
 USAGE:
     
@@ -417,7 +427,8 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
             (list<int>)
             An list of the columns to be retained from the input file, in that
             specified order.
-            Uses the 0-index system. (The first column's index number is 0)
+            Uses the 1-index system. (The first column's index number is 1)
+            0 is used to signify an empty column.
     @inc_filters
     @exc_filters
             (list<int,int,str/int/float>)
@@ -610,9 +621,14 @@ def Create_Output(data, columns, delim):
     first = columns[0]
     others = columns[1:]
 
-    sb = data[first]
+    if first == 0: sb = ""
+    else: sb = data[first - 1]
+    
     for i in others:
-        sb += (delim + data[i])
+        if i == 0:
+            sb += (delim + "")
+        else:
+            sb += (delim + data[i - 1])
 
     sb += "\n"
 
@@ -849,7 +865,7 @@ def Parse_Command_Line_Input__t2t(raw_command_line_input):
         printE(STR__no_inputs)
         printE(STR__use_help)
         return 1
-  
+    
     # Help option
     if inputs[0] in LIST__help:
         print(HELP_DOC)
@@ -983,7 +999,7 @@ def Validate_Read_Path(filepath):
     
 def Validate_Write_Path(filepath):
     """
-    Validates the filepath of the input file.
+    Validates the filepath of the output file.
     Return 0 if the filepath is writtable.
     Return 1 if the user decides to overwrite an existing file.
     Return 2 if the user declines to overwrite an existing file.
@@ -1052,7 +1068,7 @@ def Strip_X(string):
 def Validate_Column_Number(string):
     """
     Validates and returns the column number specified.
-    Returns the column number under an index 0 system if valid.
+    Returns the column number under an index 1 system if valid.
     Return -1 if the input is invalid.
     @string
         (str)
@@ -1064,8 +1080,8 @@ def Validate_Column_Number(string):
         n = int(string)
     except:
         return -1
-    if n < 1: return -1
-    return n - 1 # Input is in index 1 system, output is in index 0
+    if n < 0: return -1
+    return n # Input is in index 1 system, output is in index 1
 
 
 
@@ -1119,6 +1135,7 @@ def Validate_Filter(string):
     string = string[index:] 
     
     col = Validate_Column_Number(col_) # Validate the column number
+    col = col - 1
     if col == -1: return []
     
     # Check for operator
