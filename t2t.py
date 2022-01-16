@@ -1,6 +1,6 @@
 HELP_DOC = """
 TABLE TO TABLE
-(version 3.0)
+(version 4.0)
 by Angelo Chan
 
 This is a program for basic table file parsing.
@@ -43,6 +43,7 @@ USAGE:
     python27 t2t.py <input_path> <{input_format}> <output_path>
             [-f {output_format}] <col_no>... [filter]...
             [-h keep|skip|rearrange N|C <number>|<character>]...
+            [-n <novel_unique_cols>]
 
 
 
@@ -175,6 +176,21 @@ OPTIONAL:
         
         If the option "C" was chosen, then this specifies which character a line
         should start with to Keep/skip/rearrange it.
+    
+    novel_unique_cols
+        
+        An "n"-separated list of the columns which will be used to determine the
+        columns, for which a novel combination of values is necessary for that
+        row of data to be accepted.
+        
+        That is to say, if multiple rows have the same combination of values in
+        the specified columns, only the first row will be accepted.
+        
+        This is not the same as specifying that the combination of values in the
+        specified columns needs to be unique across the entire file.
+        
+        If no unique columns are specified, no rows of data will be filtered
+        out.
 
 
 
@@ -193,7 +209,11 @@ EXAMPLES EXPLANATION:
     3:
     Keep columns 1, 2, and 3, in that order, followed by a placeholder column,
     followed by column 4.
-
+    
+    4:
+    Keep columns 1, 2, 3, and 4 in that order, keeping only unique combinations
+    of values in columns 1, 2, and 3.
+    
 EXAMPLES:
 
     python27 t2t.py Test_Data_1.tsv tsv Test_Output.csv -f csv 2 3 4 5
@@ -205,11 +225,14 @@ EXAMPLES:
 
     python27 t2t.py Test_Data_1.tsv tsv Test_Output.csv -f csv 1 2 3 0 4
 
+    python27 t2t.py Test_Data_1.tsv tsv Test_Output.csv -f csv 1 2 3 4 -n 1n2n3
+
 USAGE:
     
     python27 t2t.py <input_path> <{input_format}> <output_path>
             [-f {output_format}] <col_no>... [filter]...
             [-h keep|skip|rearrange N|C <number>|<character>]...
+            [-u <col_no>]...
 """
 
 
@@ -296,6 +319,11 @@ STR__specify_3_arguments_for_headers = """
 ERROR: Please specify 3 arguments if you use the -h; whether to keep or skip the
 lines, whether to keep/skip lines beginning with a certain character or a set
 number of lines, and either character or the number of lines."""
+
+STR__specify_unique_columns = """
+ERROR: Please specify columns for which a new unique combination of values is
+required for row of data to be accepted. Separated by the character "n" and no
+whitespaces."""
 
 STR__invalid_header_ksr = """
 ERROR: Invalid action to take: {s}
@@ -407,7 +435,7 @@ for i in LIST__char: DICT__header_type[i] = HEADER_TYPE.CHAR
 # File Processing Code #########################################################
 
 def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
-            inc_filters, exc_filters, headers):
+            inc_filters, exc_filters, headers, novel_unique):
     """
     Function which performs the basic table file parsing.
     
@@ -437,7 +465,7 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
             exclusion.
             Each item in the list is a criteria.
             Each criteria item consists of three parts:
-                1) The column number of the data to be filtered.
+                1) The column number of the data to be filtered. (index-1 system)
                 2) An integer denoting the type of filtering operation:
                     1:  EQUALS (string)
                     2:  NOT_EQUAL (string)
@@ -470,6 +498,17 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
                         which denotes the lines to be acted on. If element 2 was
                         NUMBER, element 3 will be the integer which denotes the
                         number of lines to act on.
+    @novel_unique
+            (list<int>)
+            A list of the columns which will be used to determine the columns,
+            for which a novel combination of values is necessary for that row of
+            data to be accepted.
+            That is to say, if multiple rows have the same combination of values
+            in the specified columns, only the first row will be accepted.
+            This is not the same as specifying that the combination of values in
+            the specified columns needs to be unique across the entire file.
+            Uses the 1-index system. (The first column's index number is 1)
+            0 is used to signify an empty column.
     
     Return a value of 0 if the function runs successfully.
     
@@ -505,16 +544,29 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
                 Process_Header(line, action, w, delim_in, delim_out, columns)
                 line = r.readline()
     
+    # Intialize Other Processing Nnecessities
+    temp = []
+    for i in novel_unique: temp.append(i - 1)
+    novel_unique = temp
+    recorded_combinations = set([])    
+    
     # Main Loop
     while line:
         count_total += 1
         
         data = Parse_Line(line, delim_in)
-
+        
         test = Filter(data, inc_filters, exc_filters)
-
-        if test:
+        
+        if novel_unique:
+            tup = Filter_Novel_Uniques(data, recorded_combinations,
+                    novel_unique)
+        else:
+            tup = True
+        
+        if test and tup:
             count_passed += 1
+            recorded_combinations.add(tup)
             string = Create_Output(data, columns, delim_out)
             w.write(string)
         
@@ -576,7 +628,7 @@ def Process_Header(line, action, writefile, delim_in, delim_out, columns):
             (list<int>)
             An list of the columns to be retained from the input file, in that
             specified order.
-            Uses the 0-index system. (The first column's index number is 0)
+            Uses the 1-index system. (The first column's index number is 1)
     
     Process_Header(str, int, file, str, str, list<int>) -> int
     """
@@ -615,6 +667,7 @@ def Create_Output(data, columns, delim):
     produce a string intended to be written to an output table file.
     The list of column numbers determines which values from [data] are kept, and
     in what order.
+    The columns use a 1-index system.
     
     Create_Output(list<str>, list<int>, str) -> str
     """
@@ -678,7 +731,7 @@ def Filter_Single(data, criteria):
     Take a list of data values, and a list representing a filter criteria.
     Return True if the data meets the criteria. Return False otherwise.
     The criteria item consists of three parts:
-        1) The column number of the data to be filtered.
+        1) The column number of the data to be filtered. (1-index)
         2) An integer denoting the type of filtering operation:
             1:  EQUALS (string)
             2:  NOT_EQUAL (string)
@@ -697,6 +750,7 @@ def Filter_Single(data, criteria):
     Filter(list<str>, [int, int, str/int/float]) -> bool
     """
     col, op, query = criteria
+    col = col - 1
     
     if op == OP.EQUALS:
         if data[col] == query: return True
@@ -768,6 +822,39 @@ def Filter_Single(data, criteria):
     
     else:
         raise Exception(STR__invalid_operation)
+
+def Filter_Novel_Uniques(data, recorded_combinations, novel_unique):
+    """
+    Return a tuple based on whether or not a row of data is "novel unique".
+    That is to say, the values in certain columns are a combination of values
+    which have never been seen ib previous rows of the file so far.
+    
+    During the execution of this function, a tuple is generated from [data]
+    using the indexes specified in [novel_unique]. If the tuple is already in
+    [recorded_combinations], return an empty tuple. Otherwise, return that
+    tuple.
+    
+    @data
+        (list<str>)
+        The data values to be processed.
+    @recorded_combinations
+        (set<tuple<str...>>)
+        A set containing tuples of all the values combinations which have been
+        seen so far in the data file for the specified columns to look out for.
+    @novel_unique
+        (list<int>)
+        A list of column numbers. (0-index)
+    
+    Filter_Novel_Uniques(list<str>, set<tuple<str...>>, list<int>) ->
+            tuple<str...>
+    """
+    temp = []
+    for i in novel_unique: temp.append(data[i])
+    temp = tuple(temp)
+    if temp in recorded_combinations: return ()
+    return temp
+
+
 
 def Ints_To_Aligned_Strings(list1, alignment):
     """
@@ -905,6 +992,7 @@ def Parse_Command_Line_Input__t2t(raw_command_line_input):
     inc_filters = []
     exc_filters = []
     headers = []
+    n_uniques = []
     
     # Parse the rest
     while inputs:
@@ -939,6 +1027,22 @@ def Parse_Command_Line_Input__t2t(raw_command_line_input):
             else:
                 # Error messages already printed by Validate_Header_ALL
                 return 1
+        elif arg == "-n": # Columns for unique value combinations
+
+            # 3 Args
+            try:
+                temp = inputs.pop(0)
+            except:
+                printE(STR__specify_unique_columns)
+                return 1
+
+            # Validate and Append
+            temp2 = Validate_Novel_Unique_Columns(temp)
+            if temp2:
+                n_uniques = temp2
+            else:
+                # Error messages already printed by Validate_Header_ALL
+                return 1
             
         else: # Column number of filtering criteria
             flag_error = True
@@ -947,7 +1051,7 @@ def Parse_Command_Line_Input__t2t(raw_command_line_input):
 
             # If column number
             c = Validate_Column_Number(arg)
-            if c != -1:
+            if c != 0:
                 columns.append(c)
                 flag_error = False
 
@@ -973,7 +1077,7 @@ def Parse_Command_Line_Input__t2t(raw_command_line_input):
     
     # Run program
     Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
-            inc_filters, exc_filters, headers)
+            inc_filters, exc_filters, headers, n_uniques)
     
     # Safe exit
     return 0
@@ -1069,7 +1173,7 @@ def Validate_Column_Number(string):
     """
     Validates and returns the column number specified.
     Returns the column number under an index 1 system if valid.
-    Return -1 if the input is invalid.
+    Return 0 if the input is invalid.
     @string
         (str)
         A string denoting the column number under the index 1 system.
@@ -1079,8 +1183,8 @@ def Validate_Column_Number(string):
     try:
         n = int(string)
     except:
-        return -1
-    if n < 0: return -1
+        return 0
+    if n < 0: return 0
     return n # Input is in index 1 system, output is in index 1
 
 
@@ -1135,8 +1239,7 @@ def Validate_Filter(string):
     string = string[index:] 
     
     col = Validate_Column_Number(col_) # Validate the column number
-    col = col - 1
-    if col == -1: return []
+    if not col: return []
     
     # Check for operator
     for k in LIST__search_ops: # Requires a specific order. DICT__ops.keys() 
@@ -1311,6 +1414,29 @@ def Validate_NC_Char(string):
     """
     if len(string) != 1: return ""
     return string
+
+def Validate_Novel_Unique_Columns(string):
+    """
+    Validate the string which contains a list of column numbers.
+    Return a list of integers if the string does indeed contain a list of
+    column numbers.
+    Return an empty list if the string is invalid.
+    
+    The input "column numbers" use an index-1 system, but the output integers
+    use an index-0 system. That 
+    
+    Validate_Novel_Unique_Columns(str) -> list<int>
+    """
+    temp = string.split("n")
+    result = []
+    for i in temp:
+        try:
+            col_no = int(i)
+            if col_no < 1: return []
+            result.append(col_no)
+        except:
+            return []
+    return result
 
 
 
