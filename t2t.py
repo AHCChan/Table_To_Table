@@ -980,7 +980,7 @@ def Parse_Command_Line_Input__t2t(raw_command_line_input):
         printE(STR__IO_error_write_forbid)
         return 1
     if valid_out == 4:
-        printE(STR__In_error_write_unable)
+        printE(STR__IO_error_write_unable)
         return 1
     
     # Set up rest of the parsing
