@@ -441,13 +441,13 @@ def Table_To_Table(path_in, delim_in, path_out, delim_out, columns,
     
     @path_in
             (str - filepath)
-            The filepath of the input file. 
+            The filepath of the input file.
     @delim_in
             (str)
             The delimiter use by the input file.
     @path_out
             (str - filepath)
-            The filepath of the output file. 
+            The filepath of the output file.
     @delim_out
             (str)
             The delimiter use by the output file.
