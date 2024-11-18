@@ -1,6 +1,6 @@
 HELP_DOC = """
 TABLE TO TABLE
-(version 4.0)
+(version 4.1)
 by Angelo Chan
 
 This is a program for basic table file parsing.
@@ -125,19 +125,19 @@ OPTIONAL:
                     
                     =   Equals <string query>
                     !=  Does not equal <string query>
-                    :   Contains <query>
-                    !:  Does not contain <query>
-                    >   Greater than <query>
-                    <   Less than <query>
-                    >=  Equal to or greater than <query>
-                    <=  Equal to or less than <query>
+                    :   Contains <string query>
+                    !:  Does not contain <string query>
+                    >   Greater than <number query>
+                    <   Less than <number query>
+                    >=  Equal to or greater than <number query>
+                    <=  Equal to or less than <number query>
                     i=  Equals <int query>
                     i!= Does not equal <int query>
                     f=  Equals <float query>
                     f!= Does not equal <float query>
                 
-                The "Equals" and Does not equal" operators can compare ints with
-                floats.
+                The "Equals" and "Does not equal" operators can compare ints
+                with floats, but may not work perfectly.
                 
                 NOTE: Some of these operations requires the entire argument
                 be enclosed in single or double inverted commas to work
